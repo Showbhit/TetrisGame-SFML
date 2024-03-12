@@ -1,29 +1,35 @@
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 #include <time.h>
-#include<iostream>
+#include <iostream>
+
 using namespace sf;
 
-const int rows = 20, cols = 20;
-int grid[rows][cols] = { 0 }, score = 0;
+const int rows = 20, cols = 20; // Game Area - Grid 
 
+int grid[rows][cols] = { 0 }, score = 0; // Initializing the grid
+
+float delay = 0.5; // Time difference between consecutive blocks 
 
 class coordinates {
 public: 
 	int x, y;
 };
 
-coordinates curr[4], prev[4];
+coordinates curr[4], prev[4];  // Two arrays one to store the current coordinates and the other to store the previous one
 
 coordinates tetriminoes[7][4] = {
-	{{1,0},{1,1},{1,2},{1,3}},// i
-	{{0,1},{1,1},{1,2},{2,2}},
-	{{0,1},{1,1},{2,1},{1,2}},
-	{{0,0},{1,0},{1,1},{1,2}},
-	{{0,1},{1,1},{0,2},{1,2}},
-	{{0,2},{1,1},{1,2},{2,1}},
-	{{1,0},{1,1},{1,2},{2,2}}
-};
+	{{1,0},{1,1},{1,2},{1,3}}, // I
+	{{0,1},{1,1},{1,2},{2,2}}, // S
+	{{0,1},{1,1},{2,1},{1,2}}, // T
+	{{0,0},{1,0},{1,1},{1,2}}, // L
+	{{0,1},{1,1},{0,2},{1,2}}, // O
+	{{0,2},{1,1},{1,2},{2,1}}, // Z
+	{{1,0},{1,1},{1,2},{2,2}}  // J
+};									// Giving Shapes to the blocks using the coordinates 
 
+
+// Function for checking the height of the figure to check for Game over condition
 int getHeight() {
 	int height = 0;
 	for (int j = rows-1; j>= 0; j--) {
@@ -34,9 +40,11 @@ int getHeight() {
 			}
 		}
 	}
-	return height;
+	return height; // If height equals to the number of rows then GAME OVER! 
 }
 
+// To check the movements allowed to a block 
+// Whether it is in the given space or it is preoccupied or not! 
 bool validMovement() {
 	for (int i = 0; i < 4; i++) {
 		if (curr[i].x < 0 || curr[i].x >= cols || curr[i].y >= rows)
@@ -47,6 +55,8 @@ bool validMovement() {
 	return 1;
 }
 
+
+// Restarting the game with resetting the game variables 
 void restartGame() {
 	// Reset game variables
 	int changeX = 0;
@@ -71,6 +81,9 @@ void restartGame() {
 	}
 
 }
+
+// Clearing the row, which is provided to make way for other blocks
+// Interchanging it with the upper row 
 void clearRow(int row) {
 	for (int k = row; k > 0; k--) {
 		for (int j = 0; j < cols; j++) {
@@ -78,7 +91,9 @@ void clearRow(int row) {
 		}
 	}
 }
-bool rowFilled(int row) {
+
+
+bool rowFilled(int row) { // Function to check whether the row provided is filled or not 
 	for (int j = 0; j < cols; j++) {
 		if (grid[row][j] == 0) {
 			return false;
@@ -88,50 +103,56 @@ bool rowFilled(int row) {
 }
 
 
-void updateScore(int &score) {
+void updateScore(int &score, float &delay) { // It updates the score after checking if the row is filled or not
 	for (int i = rows - 1; i >= 0; i--) {
 		if (rowFilled(i)) {
 			score += 10;
 			clearRow(i);
+			delay *= 0.9;
 		}		
 	}
 }
 
 int main() {
+	//Gives random time
 	srand(time(0));
+	Clock clock;
 
-	bool paused = false;
-	RenderWindow window(VideoMode(800, 500), "SFML: TETRIS GAME! ");
+	RenderWindow window(VideoMode(800, 500), "SFML: TETRIS GAME! "); // Creates a window 
 
-	Texture t1, t2, t3;
+	Texture t1, t2, t3; 
 	t1.loadFromFile("tiles.png");
 	t2.loadFromFile("bgm.png");
 	t3.loadFromFile("frame.png");
 
-	
-
 	Sprite block(t1), background(t2), outline(t3);
 
-	int changeX = 0, colourNum = 1 + rand() % 7, gameOverTime = 0;
-	bool rotate = 0, restart = 0;
-	float timer = 0, delay = 0.5;
+	int changeX = 0, colourNum = 1 + rand() % 7, gameOverTime = 0; // Declaring Game variables 
+	bool rotate = 0, restart = 0, paused = 0;
+	float timer = 0;
 
-	Clock clock;
-
-	outline.setPosition(177,65);
-	RectangleShape restartButton(Vector2f(90, 20));
+	outline.setPosition(177,58); // Setting outline position
+	
+	RectangleShape restartButton(Vector2f(90, 20)); // Restart Button
 	restartButton.setFillColor(Color::Black);
-	restartButton.setPosition(550, 10);
+	restartButton.setPosition(450, 10);
 
-	Font font;
+	Font font; // Font for the written text 
 	font.loadFromFile("arial.ttf"); 
 
-	Text buttonText("RESTART", font, 15);
-	buttonText.setPosition(550, 10);
+	Text buttonText("RESTART", font, 17); 
+	buttonText.setPosition(450, 10);
 
-	Text scoreText("SCORE: ", font, 15);
-	scoreText.setPosition(650, 10);
+	Text scoreText("SCORE: ", font, 17); // Score text
+	scoreText.setPosition(550, 10);
 
+	Music backgroundMusic; // Background Music 
+	if (!backgroundMusic.openFromFile("bgm1.mp3"))
+		return -1; // error loading background music
+
+	backgroundMusic.play();
+	backgroundMusic.setVolume(0); // set volume to 50%
+	backgroundMusic.setLoop(true);
 
 	while (window.isOpen()) {
 
@@ -146,11 +167,13 @@ int main() {
 		}
 
 		Event e;
-		while (window.pollEvent(e)) {
-			if (e.type == Event::Closed)
-				window.close();
-			if (e.KeyPressed && e.key.code == Keyboard::Escape)
-				window.close();//
+		while (window.pollEvent(e)) { // Key events 
+			if (e.type == Event::Closed) {
+				window.close(); backgroundMusic.stop();
+			}
+			if (e.KeyPressed && e.key.code == Keyboard::Escape) {
+				window.close(); backgroundMusic.stop();
+			}
 			if (e.type == Event::KeyPressed) {
 				if (e.key.code == Keyboard::Up)
 					rotate = true;
@@ -160,8 +183,13 @@ int main() {
 					changeX = 1;
 				else if (e.key.code == Keyboard::R)
 					restart = true;
-				else if (e.key.code == Keyboard::Space)
-					paused = !paused;
+				else if (e.key.code == Keyboard::Space) {
+					paused = !paused; 
+					if (paused)
+						backgroundMusic.pause();
+					else
+						backgroundMusic.play();
+				} 
 			}
 			if (e.type == Event::MouseButtonPressed) {
 				if (e.mouseButton.button == Mouse::Left) {
@@ -178,7 +206,7 @@ int main() {
 		//
 		
 
-		// downwards movement
+		// Downwards movement
 		if(!paused){
 		for (int i = 0; i < 4; i++) {
 			prev[i] = curr[i];
@@ -190,7 +218,7 @@ int main() {
 				curr[i] = prev[i];
 		}
 		
-		// rotation of tetriminoes 
+		// Rotation of tetriminoes 
 
 		if (!paused && rotate) {
 			coordinates p = curr[1];
@@ -207,9 +235,9 @@ int main() {
 					curr[i] = prev[i];
 			}
 		}
-
-		// tick
 		
+		// Generating Game 
+
 		if (!paused && timer > delay) {
 			for (int i = 0; i < 4; i++) {
 				prev[i] = curr[i];
@@ -235,18 +263,17 @@ int main() {
 		}
 
 		changeX = 0; rotate = 0; delay = 0.5;
-		updateScore(score);
+		updateScore(score, delay);
 		// Update the score text
 		scoreText.setString("SCORE: " + std::to_string(score));
 		// draw the window
 
-		window.clear(Color::White);
-		
-		window.draw(background);
+		window.clear(Color::White); // Clear window 
+
+		window.draw(background); // Drawing on window 
 		window.draw(outline);
 		window.draw(restartButton);
 		window.draw(buttonText);
-
 		window.draw(scoreText);
 
 		for (int i = 0; i < rows; i++) {
@@ -255,34 +282,20 @@ int main() {
 					continue;
 				block.setTextureRect(IntRect(grid[i][j] * 18, 0, 18, 18));
 				block.setPosition(j * 18, i * 18);
-				block.move(200, 50);
+				block.move(200, 79);
 				window.draw(block);
 			}
 		}
 		for (int i = 0; i < 4; i++) {
 			block.setTextureRect(IntRect(colourNum * 18, 0, 18, 18));
 			block.setPosition(curr[i].x * 18, curr[i].y * 18);
-			block.move(200, 50);
+			block.move(200, 79);
 			window.draw(block);
 		}
 
 		
-		window.display();
+		window.display(); // Display the window 
 		
 	}
 	return 0;
 }
-
-// check full lines and update the grid!
-
-		/*int k = rows - 1;
-		for (int i = rows - 1; i > 0; i--) {
-			int count = 0;
-			for (int j = 0; j < cols; j++) {
-				if (grid[i][j])
-					count++;
-				grid[k][j] = grid[i][j];
-			}
-			if (count < cols)
-				k--;
-		}*/
